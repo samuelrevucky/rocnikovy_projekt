@@ -14,13 +14,15 @@ public class EWrapperImpl implements EWrapper {
 	//! [ewrapperimpl]
 	
 	//! [socket_declare]
-	private EReaderSignal readerSignal;
-	private EClientSocket clientSocket;
+	private final EReaderSignal readerSignal;
+	private final EClientSocket clientSocket;
+	private final CallbackListener callbackListener;
 	protected int currentOrderId = -1;
 	//! [socket_declare]
 	
 	//! [socket_init]
-	public EWrapperImpl() {
+	public EWrapperImpl(CallbackListener callbackListener) {
+		this.callbackListener = callbackListener;
 		readerSignal = new EJavaSignal();
 		clientSocket = new EClientSocket(this, readerSignal);
 	}
@@ -376,6 +378,10 @@ public class EWrapperImpl implements EWrapper {
 	//! [error]
 	@Override
 	public void error(int id, int errorCode, String errorMsg) {
+		if (id == -1) callbackListener.setConnection(true);
+		else if (!clientSocket.isConnected()) {
+			callbackListener.setConnection(false);
+		}
 		System.out.println("Error. Id: " + id + ", Code: " + errorCode + ", Msg: " + errorMsg + "\n");
 	}
 	//! [error]
