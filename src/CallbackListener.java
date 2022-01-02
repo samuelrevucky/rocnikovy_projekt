@@ -6,4 +6,9 @@ public class CallbackListener extends Observable {
         setChanged();
         notifyObservers(state);
     }
+
+    void setStrikes(int hasStrikes) {
+        setChanged();
+        notifyObservers(hasStrikes);
+    }
 }

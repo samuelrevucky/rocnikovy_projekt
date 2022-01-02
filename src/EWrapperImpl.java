@@ -4,29 +4,40 @@
 import com.ib.client.*;
 
 import java.text.DecimalFormat;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-//! [ewrapperimpl]
 public class EWrapperImpl implements EWrapper {
-	//! [ewrapperimpl]
-	
-	//! [socket_declare]
+
 	private final EReaderSignal readerSignal;
 	private final EClientSocket clientSocket;
+
 	private final CallbackListener callbackListener;
+	private final OptionChain optionChain;
+
+	private final int BID_FIELD;
+	private final int ASK_FIELD;
+
 	protected int currentOrderId = -1;
-	//! [socket_declare]
-	
-	//! [socket_init]
-	public EWrapperImpl(CallbackListener callbackListener) {
+
+	public EWrapperImpl(CallbackListener callbackListener, OptionChain optionChain, int marketDataType) {
 		this.callbackListener = callbackListener;
+		this.optionChain = optionChain;
 		readerSignal = new EJavaSignal();
 		clientSocket = new EClientSocket(this, readerSignal);
+
+		if (marketDataType == 1 || marketDataType == 2) {
+			BID_FIELD = 1;
+			ASK_FIELD = 2;
+		} else {
+			BID_FIELD = 66;
+			ASK_FIELD = 67;
+		}
 	}
-	//! [socket_init]
+
 	public EClientSocket getClient() {
 		return clientSocket;
 	}
@@ -42,15 +53,25 @@ public class EWrapperImpl implements EWrapper {
 	 //! [tickprice]
 	@Override
 	public void tickPrice(int tickerId, int field, double price, TickAttrib attribs) {
-		System.out.println("Tick Price. Ticker Id:"+tickerId+", Field: "+field+", Price: "+price+", CanAutoExecute: "+ attribs.canAutoExecute()
-		+ ", pastLimit: " + attribs.pastLimit() + ", pre-open: " + attribs.preOpen());
+		/*System.out.println("Tick Price. Ticker Id:"+tickerId+", Field: "+field+", Price: "+price+", CanAutoExecute: "+ attribs.canAutoExecute()
+		+ ", pastLimit: " + attribs.pastLimit() + ", pre-open: " + attribs.preOpen());*/
+		if (tickerId % 10 == 0) {
+			if (field == BID_FIELD) optionChain.calls().get((double) tickerId/1000).bid(price);
+			if (field == ASK_FIELD) optionChain.calls().get((double) tickerId/1000).ask(price);
+			optionChain.incNumberOfQuotes();
+		}
+		if (tickerId % 10 == 1) {
+			if (field == BID_FIELD) optionChain.puts().get((double) (tickerId - 1)/1000).bid(price);
+			if (field == ASK_FIELD) optionChain.puts().get((double) (tickerId - 1)/1000).ask(price);
+			optionChain.incNumberOfQuotes();
+		}
 	}
 	//! [tickprice]
 	
 	//! [ticksize]
 	@Override
 	public void tickSize(int tickerId, int field, int size) {
-		System.out.println("Tick Size. Ticker Id:" + tickerId + ", Field: " + field + ", Size: " + size);
+		//System.out.println("Tick Size. Ticker Id:" + tickerId + ", Field: " + field + ", Size: " + size);
 	}
 	//! [ticksize]
 	
@@ -60,22 +81,22 @@ public class EWrapperImpl implements EWrapper {
 			double impliedVol, double delta, double optPrice,
 			double pvDividend, double gamma, double vega, double theta,
 			double undPrice) {
-		System.out.println("TickOptionComputation. TickerId: "+tickerId+", field: "+field+", ImpliedVolatility: "+impliedVol+", Delta: "+delta
-                +", OptionPrice: "+optPrice+", pvDividend: "+pvDividend+", Gamma: "+gamma+", Vega: "+vega+", Theta: "+theta+", UnderlyingPrice: "+undPrice);
+		//System.out.println("TickOptionComputation. TickerId: "+tickerId+", field: "+field+", ImpliedVolatility: "+impliedVol+", Delta: "+delta
+        //        +", OptionPrice: "+optPrice+", pvDividend: "+pvDividend+", Gamma: "+gamma+", Vega: "+vega+", Theta: "+theta+", UnderlyingPrice: "+undPrice);
 	}
 	//! [tickoptioncomputation]
 	
 	//! [tickgeneric]
 	@Override
 	public void tickGeneric(int tickerId, int tickType, double value) {
-		System.out.println("Tick Generic. Ticker Id:" + tickerId + ", Field: " + TickType.getField(tickType) + ", Value: " + value);
+		//System.out.println("Tick Generic. Ticker Id:" + tickerId + ", Field: " + TickType.getField(tickType) + ", Value: " + value);
 	}
 	//! [tickgeneric]
 	
 	//! [tickstring]
 	@Override
 	public void tickString(int tickerId, int tickType, String value) {
-		System.out.println("Tick string. Ticker Id:" + tickerId + ", Type: " + tickType + ", Value: " + value);
+		//System.out.println("Tick string. Ticker Id:" + tickerId + ", Type: " + tickType + ", Value: " + value);
 	}
 	//! [tickstring]
 	@Override
@@ -157,7 +178,17 @@ public class EWrapperImpl implements EWrapper {
 	//! [contractdetails]
 	@Override
 	public void contractDetails(int reqId, ContractDetails contractDetails) {
-		System.out.println(EWrapperMsgGenerator.contractDetails(reqId, contractDetails)); 
+		Contract contract = contractDetails.contract();
+		if (!contract.secType().getApiString().equals("OPT"))
+			System.out.println(EWrapperMsgGenerator.contractDetails(reqId, contractDetails));
+		else {
+			if (!optionChain.strikes().contains(contract.strike())) optionChain.strikes().add(contract.strike());
+			if (contract.right().getApiString().equals("C"))
+				optionChain.calls().put(contract.strike(), new Option(contract.conid(), contract.strike(), contract.right().getApiString().charAt(0)));
+			else if (contract.right().getApiString().equals("P"))
+				optionChain.puts().put(contract.strike(), new Option(contract.conid(), contract.strike(), contract.right().getApiString().charAt(0)));
+			optionChain.incNumberOfContracts();
+		}
 	}
 	//! [contractdetails]
 	@Override
@@ -168,6 +199,7 @@ public class EWrapperImpl implements EWrapper {
 	@Override
 	public void contractDetailsEnd(int reqId) {
 		System.out.println("ContractDetailsEnd. "+reqId+"\n");
+		callbackListener.setStrikes(reqId);
 	}
 	//! [contractdetailsend]
 	
@@ -294,7 +326,7 @@ public class EWrapperImpl implements EWrapper {
 	//! [marketdatatype]
 	@Override
 	public void marketDataType(int reqId, int marketDataType) {
-		System.out.println("MarketDataType. ["+reqId+"], Type: ["+marketDataType+"]\n");
+		//System.out.println("MarketDataType. ["+reqId+"], Type: ["+marketDataType+"]\n");
 	}
 	//! [marketdatatype]
 	
@@ -382,7 +414,7 @@ public class EWrapperImpl implements EWrapper {
 		else if (!clientSocket.isConnected()) {
 			callbackListener.setConnection(false);
 		}
-		System.out.println("Error. Id: " + id + ", Code: " + errorCode + ", Msg: " + errorMsg + "\n");
+		else System.out.println("Error. Id: " + id + ", Code: " + errorCode + ", Msg: " + errorMsg + "\n");
 	}
 	//! [error]
 	@Override
@@ -436,6 +468,10 @@ public class EWrapperImpl implements EWrapper {
 			int underlyingConId, String tradingClass, String multiplier,
 			Set<String> expirations, Set<Double> strikes) {
 		System.out.println("Security Definition Optional Parameter. Request: "+reqId+", Trading Class: "+tradingClass+", Multiplier: "+multiplier+" \n");
+		for (String s : expirations) System.out.print(s + " ");
+		System.out.println();
+		for (Double d : strikes) System.out.print(d + " ");
+		System.out.println();
 	}
 	//! [securityDefinitionOptionParameter]
 
@@ -524,7 +560,7 @@ public class EWrapperImpl implements EWrapper {
 	//! [tickReqParams]
 	@Override
 	public void tickReqParams(int tickerId, double minTick, String bboExchange, int snapshotPermissions) {
-		System.out.println("Tick req params. Ticker Id:" + tickerId + ", Min tick: " + minTick + ", bbo exchange: " + bboExchange + ", Snapshot permissions: " + snapshotPermissions);
+		//System.out.println("Tick req params. Ticker Id:" + tickerId + ", Min tick: " + minTick + ", bbo exchange: " + bboExchange + ", Snapshot permissions: " + snapshotPermissions);
 	}
 	//! [tickReqParams]
 
