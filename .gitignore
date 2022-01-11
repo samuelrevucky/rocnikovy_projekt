@@ -1,3 +1,5 @@
 .idea/
 out/
+target/
 rocnikovy_projekt.iml
+chromedriver.exe
