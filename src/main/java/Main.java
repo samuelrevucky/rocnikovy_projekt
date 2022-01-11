@@ -34,6 +34,7 @@ public class Main {
                 }
             }).start();
 
+            YFQuotes yfQuotes = new YFQuotes("https://finance.yahoo.com/quote/AAL/options?p=AAL");
             Thread.sleep(1000);
             if (!isConnected) return;
 
