@@ -33,9 +33,9 @@ public class Main {
                     }
                 }
             }).start();
-
-            YFQuotes yfQuotes = new YFQuotes("https://finance.yahoo.com/quote/AAL/options?p=AAL");
-            Thread.sleep(1000);
+            long time = System.currentTimeMillis();
+            OptionChain chain = YFQuotes.getYFQuotes("https://finance.yahoo.com/quote/AMZN/options?p=AMZN");
+            System.out.println("Time needed to fetch data: " + (System.currentTimeMillis()-time));
             if (!isConnected) return;
 
             client.eDisconnect();
