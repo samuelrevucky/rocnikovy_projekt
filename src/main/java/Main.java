@@ -12,7 +12,7 @@ public class Main {
         private boolean isConnected = false;
 
         private void run() throws InterruptedException {
-
+            /*
             CallbackListener callbackListener = new CallbackListener();
             callbackListener.addObserver(this);
             EWrapperImpl wrapper = new EWrapperImpl(callbackListener);
@@ -33,12 +33,15 @@ public class Main {
                     }
                 }
             }).start();
+
+             */
             long time = System.currentTimeMillis();
             OptionChain chain = YFQuotes.getYFQuotes("https://finance.yahoo.com/quote/AMZN/options?p=AMZN");
+            System.out.println(chain);
             System.out.println("Time needed to fetch data: " + (System.currentTimeMillis()-time));
             if (!isConnected) return;
 
-            client.eDisconnect();
+            //client.eDisconnect();
         }
 
         @Override

@@ -31,8 +31,16 @@ public class OptionChain {
     public void addOption(Option option){
         double strike = option.getStrike();
         if (!strikes.contains(strike)) strikes.add(strike);
-        if (option.getRight() == 'C') calls.put(strike, option);
+        if (option.getRight() == Option.Right.Call) calls.put(strike, option);
         else puts.put(strike, option);
     }
 
+    @Override
+    public String toString() {
+        StringBuilder SB = new StringBuilder();
+        for (double x : strikes) {
+            SB.append(calls.get(x)).append(" || Strike: ").append(x).append(" || ").append(puts.get(x)).append("\n");
+        }
+        return SB.toString();
+    }
 }

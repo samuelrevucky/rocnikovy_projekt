@@ -1,7 +1,9 @@
 public class Option {
 
+    public enum Right {Call, Put}
+
     private double strike;
-    private char right;
+    private Right right;
     private double ask;
     private double bid;
     private double impliedVol;
@@ -10,7 +12,7 @@ public class Option {
     public double getStrike() {
         return strike;
     }
-    public char getRight() {
+    public Right getRight() {
         return right;
     }
     public double getAsk() {
@@ -27,7 +29,7 @@ public class Option {
     public void setStrike(double strike) {
         this.strike = strike;
     }
-    public void setRight(char right) {
+    public void setRight(Right right) {
         this.right = right;
     }
     public void setAsk(double ask) {
@@ -40,15 +42,20 @@ public class Option {
         this.impliedVol = impliedVol;
     }
 
-    public Option(double strike, char right){
+    public Option(double strike, Right right){
         this.strike = strike;
         this.right = right;
     }
 
-    public Option(double strike, char right, double ask, double bid) {
+    public Option(double strike, Right right, double ask, double bid) {
         this.strike = strike;
         this.right = right;
         this.ask = ask;
         this.bid = bid;
+    }
+
+    @Override
+    public String toString() {
+        return right + " Ask: " + ask + " Bid: " + bid + " ";
     }
 }
