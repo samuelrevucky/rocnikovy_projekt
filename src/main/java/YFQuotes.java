@@ -37,7 +37,6 @@ public class YFQuotes {
             //double implVol = Double.parseDouble(x.select("td[class^=data-col10]").text().replace('%', ' '));
             chain.addOption(new Option(strike, Option.Right.Put, ask, bid));
         }
-        Collections.sort(chain.getStrikes());
         return chain;
     }
 }

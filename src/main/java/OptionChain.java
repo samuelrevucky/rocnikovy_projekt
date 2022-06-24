@@ -35,6 +35,21 @@ public class OptionChain {
         else puts.put(strike, option);
     }
 
+    public HashMap<Option, Integer> longIronBtfly() {
+        HashMap<Option, Integer> map = new HashMap<>();
+        double middle = strikes.stream().reduce((p1, p2) -> Math.abs(p1 - priceOfUnderl) < Math.abs(p2 - priceOfUnderl) ? p1 : p2).orElseThrow();
+        map.put(calls.get(middle), 2);
+        map.put(puts.get(middle), 2);
+
+        map.put(calls.get(strikes.stream().reduce((p1, p2) -> Math.abs(p1 - priceOfUnderl * 1.1) < Math.abs(p2 - priceOfUnderl * 1.1) ? p1 : p2).orElseThrow()), -1);
+        map.put(calls.get(strikes.stream().reduce((p1, p2) -> Math.abs(p1 - priceOfUnderl * 1.2) < Math.abs(p2 - priceOfUnderl * 1.2) ? p1 : p2).orElseThrow()), -1);
+
+        map.put(puts.get(strikes.stream().reduce((p1, p2) -> Math.abs(p1 - priceOfUnderl * 0.9) < Math.abs(p2 - priceOfUnderl * 0.9) ? p1 : p2).orElseThrow()), -1);
+        map.put(puts.get(strikes.stream().reduce((p1, p2) -> Math.abs(p1 - priceOfUnderl * 0.8) < Math.abs(p2 - priceOfUnderl * 0.8) ? p1 : p2).orElseThrow()), -1);
+
+        return map;
+    }
+
     @Override
     public String toString() {
         StringBuilder SB = new StringBuilder();
