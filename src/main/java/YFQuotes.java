@@ -10,6 +10,13 @@ import java.util.Collections;
 
 public class YFQuotes {
 
+    /**
+     * Static method specifically suited to retrieve option chains from Yahoo Finance page.
+     *
+     * @param url Url of the YF page of the wanted option.
+     * @return OptionChain
+     */
+
     public static OptionChain getYFQuotes(String url) {
 
         System.setProperty("webdriver.chrome.driver", "chromedriver.exe");
@@ -17,6 +24,7 @@ public class YFQuotes {
         driver.get(url);
         driver.findElement(new By.ByXPath("//button[@type='submit' and @class='btn primary' and @name='agree']")).click();
         Document document = Jsoup.parse(driver.getPageSource());
+        driver.close();
 
         Double priceOfUnderl = Double.parseDouble(document.select("fin-streamer[data-test=qsp-price]").first().text().replaceAll(",", ""));
         Elements calls_rows = document.select("table.calls").select("tr[class^=data-row]");
