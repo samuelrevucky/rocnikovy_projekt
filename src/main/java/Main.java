@@ -1,53 +1,82 @@
-import com.ib.client.EClientSocket;
-import com.ib.client.EReader;
-import com.ib.client.EReaderSignal;
+import com.ib.client.*;
 
-import java.util.Observable;
-import java.util.Observer;
+import java.util.HashMap;
+import java.util.Scanner;
 
 public class Main {
+    public static void main(String[] args) {
 
-    private static class Run implements Observer{
+        /**
+         * The class serves as a mechanism through which the brokerage delivers information to this application.
+         */
+        EWrapperImpl wrapper = new EWrapperImpl();
 
-        private boolean isConnected = false;
+        /**
+         * The class used to send messages to the brokerage.
+         */
+        EClientSocket client = wrapper.getClient();
 
-        private void run() throws InterruptedException {
+        /**
+         * A class that uses Java Monitor.
+         * Used to synchronize threads waiting for messages from brokerage and receiving messages from brokerage.
+         */
+        EReaderSignal signal = wrapper.getSignal();
 
-            CallbackListener callbackListener = new CallbackListener();
-            callbackListener.addObserver(this);
-            EWrapperImpl wrapper = new EWrapperImpl(callbackListener);
-            EClientSocket client = wrapper.getClient();
-            EReaderSignal signal = wrapper.getSignal();
+        client.eConnect("127.0.0.1", 7497, 1);   //initialize connection to brokerage on socket 7497
+                                                         //if trading in live mode, needs to be changed to 7496
 
-            client.eConnect("127.0.0.1", 7497, 1);
+        if (!client.isConnected()) throw new RuntimeException("Unable to connect to TWS");
 
-            EReader reader = new EReader(client, signal);
-            reader.start();
-            new Thread(() -> {
-                while (client.isConnected()) {
-                    signal.waitForSignal();
-                    try {
-                        reader.processMsgs();
-                    } catch (Exception e) {
-                        System.out.println("Exception: " + e.getMessage());
-                    }
-                }
-            }).start();
+        /**
+         * Thread that receives and processes messages from brokerage and passes them to the wrapper class to handle.
+         */
+        EReader reader = new EReader(client, signal);
+        reader.start();
+        handleMessages(reader, signal);
 
-            YFQuotes yfQuotes = new YFQuotes("https://finance.yahoo.com/quote/AAL/options?p=AAL");
-            Thread.sleep(1000);
-            if (!isConnected) return;
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter symbol");
+        String symbol = scanner.next();
+        System.out.println("Enter date in YYYYMMDD format");
+        String expDate = scanner.next();
+        System.out.println("Enter url");
+        String url = scanner.next();
 
-            client.eDisconnect();
+        //"https://finance.yahoo.com/quote/AAL/options?p=AAL"
+        OptionChain chain = YFQuotes.getYFQuotes(url);
+        HashMap<Option, Integer> map = chain.longIronBtfly();
+
+        int nextOrderId = wrapper.currentOrderId;
+        for (Option x : map.keySet()) {
+            client.placeOrder(nextOrderId++,
+                    new Contract() {{
+                        symbol(symbol);
+                        secType("OPT");
+                        exchange("SMART");
+                        currency("USD");
+                        lastTradeDateOrContractMonth(expDate);
+                        right(x.getRight().toString());
+                        strike(x.getStrike());
+                        multiplier("100");
+                    }},
+                    new Order() {{
+                        if (map.get(x) < 0) action("SELL");
+                        else action("BUY");
+                        orderType("MKT");
+                        totalQuantity(Math.abs(map.get(x)));
+                    }});
+            handleMessages(reader, signal);
         }
 
-        @Override
-        public void update(Observable o, Object arg) {
-            isConnected = (boolean) arg;
-        }
+        client.eDisconnect();
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        new Run().run();
+    private static void handleMessages(EReader reader, EReaderSignal signal) {
+        signal.waitForSignal();
+        try {
+            reader.processMsgs();
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+        }
     }
 }
